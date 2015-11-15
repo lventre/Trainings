@@ -1,0 +1,2 @@
+# Trainings
+F# introduction
