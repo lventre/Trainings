@@ -1,4 +1,4 @@
-﻿// <copyright file="FSharp4Quants.fsx" company="Engie University">
+﻿// <copyright file="FSharpIntro.fsx" company="Engie University">
 //  Copyright (c) Engie, all rights reserved.
 // </copyright>
 
@@ -185,7 +185,7 @@ module Ast =
 
 (*
 -------------------------------------------------------------------------
-F# collections
+Collections
 -------------------------------------------------------------------------
 *)
 
@@ -194,6 +194,25 @@ let multipleOf x = [ for i in 1 .. 10 do yield x * i]
 let multipleOf5 = multipleOf 5 // [ 5; 10; 15; 20; 25; 30; 35; 40; 45; 50 ]
 
 
+(*
+-------------------------------------------------------------------------
+F# units of measure
+-------------------------------------------------------------------------
+*)
+
+type CurrencyRate<[<Measure>]'u, [<Measure>]'v> =
+    { Rate: float<'u/'v>; Date: System.DateTime }
+
+[<Measure>] type EUR
+[<Measure>] type USD
+[<Measure>] type GBP
+
+let date = System.DateTime(2015, 11, 25)
+let eurToUsdAtDate = { Rate= 1.2<USD/EUR>; Date= date }
+let eurToGbpAtDate = { Rate= 1.2<GBP/EUR>; Date= date }
+
+let tenEur = 10.0<EUR>
+let tenEurInUsd = eurToUsdAtDate.Rate * tenEur
 
 (*
 -------------------------------------------------------------------------
