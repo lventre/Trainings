@@ -14,7 +14,7 @@ F# syntax basics
 // The 'let' keyword maps a name to a value.
 let c = 'a'
 let s = "this is a string"
-printfn "Length of the string: %i" s.Length
+printfn "Length of the string: %i" s.Length // printf is statically type checked
 
 // Primitive types, and type inference
 let v1 : float = 1.0    // type 'float' in F# means 'System.Double' !
@@ -23,11 +23,29 @@ let v2 = 1.0            // val v2:float
 let v3 = 1.0f           // val v3:float32 (equiv. of 'System.Single')
 
 let b1 = true           // val b1:bool
-// b1 <- false          // Value are immutable by default! Compile-time error
+// b1 <- false          // error FS0027: This value is not mutable
 
 let nameTuple = ("James", "Bond")
-let firstName = fst nameTuple   // James
-let lastName = snd nameTuple    // Bond
+fst nameTuple |> printfn "First name: %s"   // James
+snd nameTuple |> printfn "Last name: %s"    // Bond
+
+let thd (_, _, c) = c
+("James", "Bond", 7) |> (thd >> printfn "Agent: %03i")    // 007
+
+(*
+-------------------------------------------------------------------------
+F# is an eager functional language (whereas Haskell is lazy)
+-------------------------------------------------------------------------
+*)
+
+let test b t f = if b then t else f
+
+// Eager evaluation
+test true (printf "true") (printf "false")  // "truefalse"
+
+// Lazy evaluation
+let f = test true (lazy (printf "true")) (lazy (printf "false"))
+f.Force()                                   // "true"
 
 (*
 -------------------------------------------------------------------------
@@ -45,13 +63,15 @@ Arithmetic
 -------------------------------------------------------------------------
 *)
 
-// Note the use of double-backticks
-let ``result is 3.0`` = 1.0 + 2.0
-let ``result is 2.0`` = 3.0 - 1.0
-let ``result is 6.0`` = 2.0 * 3.0
-let ``result is 0.5`` = 1.0 / 2.0
-let ``result is 8.0`` = 2.0 ** 3.0
-let ``result is 1`` = 7 % 3
+// From Microsoft.FSharp.Core.Operators : redefines common operators for arithmetic overflow checks
+open Checked
+
+1.0 + 2.0  |> printfn "%A"  // 3.0
+3.0 - 1.0  |> printfn "%A"  // 2.0
+2.0 * 3.0  |> printfn "%A"  // 6.0
+1.0 / 2.0  |> printfn "%A"  // 0.5
+2.0 ** 3.0 |> printfn "%A"  // 8.0
+7 % 3      |> printfn "%A"  // 1
 
 (*
 -------------------------------------------------------------------------
@@ -59,21 +79,21 @@ Common math functions
 -------------------------------------------------------------------------
 *)
 
-let ``abs(-1) = 1`` = abs -1
-let ``sign(-5) = -1`` = sign -5
-let ``ceil(9.1) = 10.0`` = ceil 9.1
-let ``floor(9.9) = 9.0`` = floor 9.9
+abs -1              |> printfn "%A" // 1
+sign -5             |> printfn "%A" // -1
+ceil 9.1            |> printfn "%A" // 10.0
+floor 9.9           |> printfn "%A" // 9.0
 
-let ``sqrt(4.0) = 2.0`` = sqrt 4.0
-let ``exp(1.0) ≃ 2.7182818`` = exp 1.0
-let ``ln(exp(1.0)) = 1.0`` = 1.0 |> (exp >> log) // composition and piping
-let ``log(10.0) = 1.0`` = log10 10.0
-let ``2^10 = 1024`` = pown 2L 10
+sqrt 4.0            |> printfn "%A" // 2.0
+exp 1.0             |> printfn "%A" // 2.718281828
+1.0 |> (exp >> log) |> printfn "%A" // 1.0
+log10 10.0          |> printfn "%A" // 1.0
+pown 2L 10          |> printfn "%A" // 1024L
 
 let pi = Math.PI
-let ``sin(pi/2) = 1.0`` = pi / 2.0 |> sin   // forward-pipe
-let ``cos(pi) = -1.0`` = cos pi
-let ``tan(pi) = 0`` = tan pi
+pi / 2.0 |> sin     |> printfn "%A" // 1.0
+cos pi              |> printfn "%A" // -1.0
+tan pi              |> printfn "%A" // 0.0
 
 (*
 -------------------------------------------------------------------------
@@ -83,7 +103,7 @@ F# functions
 
 let inline add n x = x + n
 let add1 = add 1    // partial application
-printfn "Adding 1 to 2 should be 3 : %A" ((add1 2) = 3) // true
+printfn "Adding 1 to 2 should be 3 : %b" ((add1 2) = 3) // true
 
 //normal version
 let printTwoParameters x y = 
@@ -100,20 +120,20 @@ let inline times n x = x * n
 let add1Times2 = add1 >> times 2
 let add5Times3 = add 5 >> times 3
 
-printfn "add5Times3 1 is %d" (add5Times3 1) // 18
+printfn "result is %d" (add5Times3 1) // 18
 
 // Add 5, then multiply by 3
 let add5ThenMultiplyBy3 = (+) 5 >> (*) 3
 
-printfn "add5ThenMultiplyBy3 1 is %d" <| add5ThenMultiplyBy3 1 // 18
+add5ThenMultiplyBy3 1 |> printfn "result is %d" // 18
 
 // Recursive functions
-let rec factorial i =
+let rec factorial i =       // val factorial : uint32 -> uint64
     match i with
-    | 0L | 1L -> 1L
-    | _  -> i * factorial (i-1L)
+    | 0u | 1u -> 1UL
+    | _  -> factorial (i-1u) * (uint64 i)
 
-factorial 10L |> printfn "10! = %d" // 3628800
+10u |> factorial |> printfn "10! = %d" // 3628800 (uint64)
 
 let rec fib i =
     match i with
