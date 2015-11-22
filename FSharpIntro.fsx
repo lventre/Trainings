@@ -127,22 +127,24 @@ let add5ThenMultiplyBy3 = (+) 5 >> (*) 3
 
 add5ThenMultiplyBy3 1 |> printfn "result is %d" // 18
 
-// Recursive functions
-let rec factorial i =       // val factorial : uint32 -> uint64
-    match i with
-    | 0u | 1u -> 1UL
-    | _  -> factorial (i-1u) * (uint64 i)
+open System.Numerics
 
-10u |> factorial |> printfn "10! = %d" // 3628800 (uint64)
+// Recursive functions
+let rec factorial i =       // val factorial : byte -> BigInteger
+    match i with
+    | 0uy | 1uy -> 1I
+    | _   -> (bigint (i |> int)) * factorial (i-1uy)
+
+30uy |> factorial |> printfn "30! = %A" // 265252859812191058636308480000000
 
 let rec fib i =
     match i with
-    | 0 | 1 -> i
+    | 0 | 1        -> i
     | n when n > 1 -> fib(n-2) + fib(n-1) // use of 'when' guards
     | n when n < 0 -> fib(n+2) - fib(n+1)
 
-fib 10  |> printfn "fib(10) = %d"  // 55
-fib -10 |> printfn "fib(-10) = %d" // -55
+fib 30  |> printfn "fib(30) = %i"  // 832040
+fib -30 |> printfn "fib(-30) = %i" // -832040
 
 (*
 -------------------------------------------------------------------------
@@ -183,25 +185,123 @@ Algebraic types and TDD
 -------------------------------------------------------------------------
 *)
 
-module Ast =
+// Representing Stock Options
 
-    /// Defines tokens
-    type Token =
-    //Comparaison tokens
-    | Eql | Neq | Lsq | Lst | Grq | Grt
-    //Function token
-    | Fun of string
-    
-    /// Any term of constant or variable value
-    and Expression =
-    | Constant      of float
-    | Add           of left:Expression * right:Expression
-    | Subtract      of left:Expression * right:Expression
-    | Multiply      of left:Expression * right:Expression
-    | Divide        of left:Expression * right:Expression
-    | Negative      of expr:Expression
-    | Compare       of cmpr:Token * left:Expression * right:Expression
-    | FunCall       of funName:Token * args:Expression list
+/// The option kind
+type OptionKind = Put | Call
+
+/// An option is either European or a combination of options
+type OptionEC = 
+    /// An American option
+    | American of kind:OptionKind * value:float
+    /// A European option
+    | European of kind:OptionKind * value:float
+    /// A combination of options
+    | Combine  of OptionEC * OptionEC
+
+/// Display the description of a stock option
+let rec display (option) =
+    match option with
+    | OptionEC.American (k, v) -> sprintf "an american option of kind %A and value %f" k v
+    | OptionEC.European (k, v) -> sprintf "a european option of kind %A and value %f" k v
+    | OptionEC.Combine  (l, r) -> sprintf "A combination of %s, and %s" (display l) (display r)
+
+let american = OptionEC.American (OptionKind.Call, 0.5)
+let european = OptionEC.European (OptionKind.Put, 0.75)
+let option = OptionEC.Combine (american, european)
+display option
+
+(*
+-------------------------------------------------------------------------
+Pattern matching
+-------------------------------------------------------------------------
+*)
+
+// Matching tuples directly
+let first, second, _ =  (1,2,3)  // underscore means ignore
+
+// Matching lists directly
+let e1::e2::rest = [1..10]       // ignore the warning for now
+
+// Matching lists inside a match..with
+let listMatcher list = 
+    match list with
+    | []              -> printfn "the list is empty" 
+    | [first]         -> printfn "the list has one element %A " first 
+    | [first; second] -> printfn "the list contains %A and %A" first second 
+    | _               -> printfn "the list has more than two elements"
+
+listMatcher [1;2;3;4]
+listMatcher [1;2]
+listMatcher [1]
+listMatcher []
+
+/// Gets the length of a list
+let rec len list = 
+    match list with
+    | []  -> 0
+    | [_] -> 1
+    | head :: tail -> 1 + len tail
+
+// create some types
+type Address = { Street: string; City: string; }   
+type Customer = { ID: int; Name: string; Address: Address}   
+
+// create a customer 
+let customer1 = { ID = 1; Name = "Bob"; 
+      Address = { Street = "123 Main"; City = "NY" } }     
+
+// extract name only
+let { Name=name1 } = customer1 
+printfn "The customer is called %s" name1
+
+(*
+-------------------------------------------------------------------------
+Active Patterns
+-------------------------------------------------------------------------
+*)
+
+// First example
+// create an active pattern
+let (|Int|_|) str =
+    match System.Int32.TryParse(str) with
+    | (true,int) -> Some(int)
+    | _ -> None
+
+// create an active pattern
+let (|Bool|_|) str =
+    match System.Boolean.TryParse(str) with
+    | (true,bool) -> Some(bool)
+    | _ -> None
+
+// create a function to call the patterns
+let testParse str = 
+    match str with
+    | Int i -> printfn "The value is an int '%i'" i
+    | Bool b -> printfn "The value is a bool '%b'" b
+    | _ -> printfn "The value '%s' is something else" str
+
+// test
+testParse "12"
+testParse "true"
+testParse "abc"
+
+
+// Second example: the FizzBuzz challenge
+// setup the active patterns
+let (|MultOf3|_|) i = if i % 3 = 0 then Some MultOf3 else None
+let (|MultOf5|_|) i = if i % 5 = 0 then Some MultOf5 else None
+
+// the main function
+let fizzBuzz i = 
+  match i with
+  | MultOf3 & MultOf5 -> printf "FizzBuzz, " 
+  | MultOf3 -> printf "Fizz, " 
+  | MultOf5 -> printf "Buzz, " 
+  | _ -> printf "%i, " i
+  
+// test
+[1..20] |> List.iter fizzBuzz
 
 (*
 -------------------------------------------------------------------------
