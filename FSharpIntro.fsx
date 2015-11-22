@@ -3,7 +3,6 @@
 // </copyright>
 
 open System
-open System.IO
 
 (*
 -------------------------------------------------------------------------
@@ -176,6 +175,7 @@ let (>>) f g x = g (f x)       // forward composition
 let (<<) g f x = g (f x)       // reverse composition
 
 /// Combines two paths
+open System.IO
 let (@@) path1 path2 = Path.Combine(path1, path2)
 let myFile = @"D:\trainings\FSharp" @@ "FSharp4Quants.fsx"
 
@@ -302,6 +302,21 @@ let fizzBuzz i =
   
 // test
 [1..20] |> List.iter fizzBuzz
+
+
+// Third example: file or directory (from FAKE/FakeLib/FileHelper.fs)
+/// Active pattern which discriminates between files and directories.
+let (|File|Directory|) (fileSysInfo : FileSystemInfo) = 
+    match fileSysInfo with
+    | :? FileInfo      as file -> File(file)
+    | :? DirectoryInfo as dir  -> Directory(dir, dir.EnumerateFileSystemInfos())
+    | _ -> failwith "No file or directory given."
+
+// test
+let file = FileInfo(myFile)
+match file with
+| File f -> sprintf "File of name '%s'" f.Name
+| Directory dir -> sprintf "Directory of name '%s'" (fst dir |> fun d -> d.Name )
 
 (*
 -------------------------------------------------------------------------
