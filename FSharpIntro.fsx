@@ -159,7 +159,8 @@ module Arithmetic =
 
 module MathCalculus = 
 
-    let add1 x = x |> Arithmetic.add 1 // or "add 1 x"
+    let add1 = Arithmetic.add 1 // partial application
+
 
 printfn "1 + 1 = %d" <| MathCalculus.add1 1
 
@@ -190,25 +191,25 @@ Algebraic types and TDD
 /// The option kind
 type OptionKind = Put | Call
 
-/// An option is either European or a combination of options
-type OptionEC = 
+/// An option is either American, European or a combination of options
+type OptionAEC = 
     /// An American option
-    | American of kind:OptionKind * value:float
+    | American of OptionKind * float
     /// A European option
-    | European of kind:OptionKind * value:float
+    | European of OptionKind * float
     /// A combination of options
-    | Combine  of OptionEC * OptionEC
+    | Combine  of OptionAEC * OptionAEC
 
 /// Display the description of a stock option
 let rec display (option) =
     match option with
-    | OptionEC.American (k, v) -> sprintf "an american option of kind %A and value %f" k v
-    | OptionEC.European (k, v) -> sprintf "a european option of kind %A and value %f" k v
-    | OptionEC.Combine  (l, r) -> sprintf "A combination of %s, and %s" (display l) (display r)
+    | OptionAEC.American (k, v) -> sprintf "an american option of kind %A and value %f" k v
+    | OptionAEC.European (k, v) -> sprintf "a european option of kind %A and value %f" k v
+    | OptionAEC.Combine  (l, r) -> sprintf "A combination of %s, and %s" (display l) (display r)
 
-let american = OptionEC.American (OptionKind.Call, 0.5)
-let european = OptionEC.European (OptionKind.Put, 0.75)
-let option = OptionEC.Combine (american, european)
+let american = OptionAEC.American (OptionKind.Call, 0.5)
+let european = OptionAEC.European (OptionKind.Put, 0.75)
+let option = OptionAEC.Combine (american, european)
 display option
 
 (*
@@ -328,7 +329,6 @@ Collections
 let multipleOf x = [ for i in 1 .. 10 do yield x * i]
 let multipleOf5 = multipleOf 5 // [ 5; 10; 15; 20; 25; 30; 35; 40; 45; 50 ]
 
-
 (*
 -------------------------------------------------------------------------
 F# units of measure
@@ -351,9 +351,55 @@ let tenEurInUsd = eurToUsdAtDate.Rate * tenEur
 
 (*
 -------------------------------------------------------------------------
-Strategy Pattern
+Design Patterns
 -------------------------------------------------------------------------
 *)
+
+//// Decorator Pattern
+
+(*
+let loggingCalculator innerCalculator input = 
+   printfn "input is %A" input
+   let result = innerCalculator input
+   printfn "result is %A" result
+   result
+*)
+
+/// A generic wrapper logger function that works with any function
+let genericLogger anyFunc input =       // val genericLogger : ('a -> 'b) -> 'a -> 'b
+    printfn "input is %A" input         // log the input
+    let result = anyFunc input          // evaluate the function
+    printfn "result is %A" result       // log the result
+    result                              // return the result
+
+let times2 input = input * 2            // val times2 : int -> int
+
+let add1WithLogging = genericLogger add1        // val add1WithLogging : (int -> int)
+let times2WithLogging = genericLogger times2    // val times2WithLogging : (int -> int)
+
+// test
+add1WithLogging 3
+times2WithLogging 3
+
+[1..5] |> List.map add1WithLogging
+
+/// A generic wrapper timer function that works with any function
+let genericTimer anyFunc input =        // val genericTimer : ('a -> 'b) -> 'a -> 'b
+   let stopwatch = System.Diagnostics.Stopwatch()
+   stopwatch.Start() 
+   let result = anyFunc input           // evaluate the function
+   printfn "elapsed ms is %A." stopwatch.ElapsedMilliseconds
+   result                               // return the result
+
+let add1WithTimer = genericTimer add1WithLogging        // val add1WithTimer : (int -> int)
+let times2WithTimer = genericTimer times2WithLogging    // val times2WithTimer : (int -> int)
+
+// test
+add1WithTimer 3
+times2WithTimer 3
+
+
+//// Strategy Pattern
 
 type Animal(noiseMakingStrategy) = 
    member this.MakeNoise = 
