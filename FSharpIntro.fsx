@@ -33,21 +33,6 @@ let thd (_, _, c) = c
 
 (*
 -------------------------------------------------------------------------
-F# is an eager functional language (whereas Haskell is lazy)
--------------------------------------------------------------------------
-*)
-
-let test b t f = if b then t else f
-
-// Eager evaluation
-test true (printf "true") (printf "false")  // "truefalse"
-
-// Lazy evaluation
-let f = test true (lazy (printf "true")) (lazy (printf "false"))
-f.Force()                                   // "true"
-
-(*
--------------------------------------------------------------------------
 Boolean operators
 -------------------------------------------------------------------------
 *)
@@ -104,11 +89,11 @@ let inline add n x = x + n
 let add1 = add 1    // partial application
 printfn "Adding 1 to 2 should be 3 : %b" ((add1 2) = 3) // true
 
-//normal version
+// normal version
 let printTwoParameters x y = 
     printfn "x=%i y=%i" x y
 
-//explicitly curried version
+// explicitly curried version
 let curriedPrintTwoParameters x  =    // only one parameter!
     let subFunction y = 
         printfn "x=%i y=%i" x y  // new function with one param
@@ -125,25 +110,6 @@ printfn "result is %d" (add5Times3 1) // 18
 let add5ThenMultiplyBy3 = (+) 5 >> (*) 3
 
 add5ThenMultiplyBy3 1 |> printfn "result is %d" // 18
-
-open System.Numerics
-
-// Recursive functions
-let rec factorial i =       // val factorial : byte -> BigInteger
-    match i with
-    | 0uy | 1uy -> 1I
-    | _   -> (bigint (i |> int)) * factorial (i-1uy)
-
-30uy |> factorial |> printfn "30! = %A" // 265252859812191058636308480000000
-
-let rec fib i =
-    match i with
-    | 0 | 1        -> i
-    | n when n > 1 -> fib(n-2) + fib(n-1) // use of 'when' guards
-    | n when n < 0 -> fib(n+2) - fib(n+1)
-
-fib 30  |> printfn "fib(30) = %i"  // 832040
-fib -30 |> printfn "fib(-30) = %i" // -832040
 
 (*
 -------------------------------------------------------------------------
@@ -179,6 +145,97 @@ let (<<) g f x = g (f x)       // reverse composition
 open System.IO
 let (@@) path1 path2 = Path.Combine(path1, path2)
 let myFile = @"D:\trainings\FSharp" @@ "FSharp4Quants.fsx"
+
+(*
+-------------------------------------------------------------------------
+Recursive functions
+-------------------------------------------------------------------------
+*)
+
+open System.Numerics
+
+let rec factorial i =       // val factorial : byte -> BigInteger
+    match i with
+    | 0uy | 1uy -> 1I
+    | _   -> (bigint (i |> int)) * factorial (i-1uy)
+
+30uy |> factorial |> printfn "30! = %A" // 265252859812191058636308480000000
+
+let rec fib i =
+    match i with
+    | 0 | 1        -> i
+    | n when n > 1 -> fib(n-2) + fib(n-1) // use of 'when' guards
+    | n when n < 0 -> fib(n+2) - fib(n+1)
+
+fib 30  |> printfn "fib(30) = %i"  // 832040
+fib -30 |> printfn "fib(-30) = %i" // -832040
+
+(*
+-------------------------------------------------------------------------
+Design Patterns
+-------------------------------------------------------------------------
+*)
+
+//// Decorator Pattern
+
+(*
+let loggingCalculator innerCalculator input = 
+   printfn "input is %A" input
+   let result = innerCalculator input
+   printfn "result is %A" result
+   result
+*)
+
+/// A generic wrapper logger function that works with any function
+let genericLogger anyFunc input =       // val genericLogger : ('a -> 'b) -> 'a -> 'b
+    printfn "input is %A" input         // log the input
+    let result = anyFunc input          // evaluate the function
+    printfn "result is %A" result       // log the result
+    result                              // return the result
+
+let times2 input = input * 2            // val times2 : int -> int
+
+let add1WithLogging = genericLogger add1        // val add1WithLogging : (int -> int)
+let times2WithLogging = genericLogger times2    // val times2WithLogging : (int -> int)
+
+// test
+add1WithLogging 3
+times2WithLogging 3
+
+[1..5] |> List.map add1WithLogging
+
+/// A generic wrapper timer function that works with any function
+let genericTimer anyFunc input =        // val genericTimer : ('a -> 'b) -> 'a -> 'b
+   let stopwatch = System.Diagnostics.Stopwatch()
+   stopwatch.Start() 
+   let result = anyFunc input           // evaluate the function
+   printfn "elapsed ms is %A." stopwatch.ElapsedMilliseconds
+   result                               // return the result
+
+let add1WithTimer = genericTimer add1WithLogging        // val add1WithTimer : (int -> int)
+let times2WithTimer = genericTimer times2WithLogging    // val times2WithTimer : (int -> int)
+
+// test
+add1WithTimer 3
+times2WithTimer 3
+
+
+//// Strategy Pattern
+
+type Animal(noiseMakingStrategy) = 
+   member this.MakeNoise = 
+      noiseMakingStrategy() |> printfn "Making noise %s" 
+   
+// now create a cat 
+let meowing() = "Meow"
+let cat = Animal(meowing)
+cat.MakeNoise
+
+// .. and a dog
+let woofOrBark() = if (DateTime.Now.Second % 2 = 0) 
+                   then "Woof" else "Bark"
+let dog = Animal(woofOrBark)
+dog.MakeNoise
 
 (*
 -------------------------------------------------------------------------
@@ -321,13 +378,104 @@ match file with
 
 (*
 -------------------------------------------------------------------------
+F# completeness
+-------------------------------------------------------------------------
+*)
+
+// impure code when needed
+let mutable counter = 0
+ 
+// create C# compatible classes and interfaces
+type IEnumerator<'a> =
+    abstract member Current : 'a
+    abstract MoveNext : unit -> bool
+ 
+// extension methods
+type System.Int32 with
+    member this.IsEven = (this % 2 = 0)
+ 
+let i = 20
+match i.IsEven with
+| true  -> printfn "'%i' is even." i
+| false -> printfn "'%i' is not even." i
+
+
+// UI code
+open System.Windows.Forms
+let form = new Form(Width = 400, Height = 300
+    , Visible = true, Text = "Hello World")
+form.TopMost <- true
+form.Click.Add (fun args -> printfn "Clicked!")
+form.Show()
+
+(*
+-------------------------------------------------------------------------
+F# is an eager functional language (whereas Haskell is lazy)
+-------------------------------------------------------------------------
+*)
+
+let test b t f = if b then t else f
+
+// Eager evaluation
+test true (printf "true") (printf "false")  // "truefalse"
+
+// Lazy evaluation
+let f = test true (lazy (printf "true")) (lazy (printf "false"))
+f.Force()                                   // "true"
+
+(*
+-------------------------------------------------------------------------
 Collections
 -------------------------------------------------------------------------
 *)
 
 // List comprehension
-let multipleOf x = [ for i in 1 .. 10 do yield x * i]
-let multipleOf5 = multipleOf 5 // [ 5; 10; 15; 20; 25; 30; 35; 40; 45; 50 ]
+let multipleOf x = [ for i in 1 .. 10 do yield x * i ]
+
+// [ 5; 10; 15; 20; 25; 30; 35; 40; 45; 50 ]
+multipleOf 5
+|> List.iteri (fun i r -> printfn "Result at index '%i' is '%i'" i r)
+
+(*
+-------------------------------------------------------------------------
+Async and Parallel programming
+-------------------------------------------------------------------------
+*)
+
+//// Pattern #1: Parallel CPU Asyncs
+
+let fibs =
+    [ for i in 0..40 -> async { return fib(i) } ]
+    |> Async.Parallel           // Execute multiple asynchronous operations in parallel.
+    |> Async.RunSynchronously   // Execute an asynchronous operation and wait for its result.
+
+
+//// Pattern #2:  Parallel I/O Asyncs
+
+// open System
+// open System.IO
+open System.Net
+open Microsoft.FSharp.Control.WebExtensions
+
+let http (name, url) =
+    async {
+        try 
+            let uri = System.Uri(url)
+            let webClient = new WebClient()
+            let! html = webClient.AsyncDownloadString(uri) // let! : binding is made to the result of an asynchronous primitive.
+            printfn "Read %d characters for %s" html.Length name
+        with
+            | ex -> printfn "%s" (ex.Message)
+    }
+
+let sites = ["Bing",   "http://www.bing.com";
+             "Google", "http://www.google.com";
+             "Yahoo",  "http://www.yahoo.com"]
+
+let htmlOfSites =
+    [for site in sites -> http site ]
+    |> Async.Parallel           // Execute multiple asynchronous operations in parallel.
+    |> Async.RunSynchronously   // Execute an asynchronous operation and wait for its result.
 
 (*
 -------------------------------------------------------------------------
@@ -349,69 +497,32 @@ let eurToGbpAtDate = { Rate= 1.2<GBP/EUR>; Date= date }
 let tenEur = 10.0<EUR>
 let tenEurInUsd = eurToUsdAtDate.Rate * tenEur
 
-(*
--------------------------------------------------------------------------
-Design Patterns
--------------------------------------------------------------------------
-*)
 
-//// Decorator Pattern
+//// Combining units
 
-(*
-let loggingCalculator innerCalculator input = 
-   printfn "input is %A" input
-   let result = innerCalculator input
-   printfn "result is %A" result
-   result
-*)
+[<Measure>] type m
+[<Measure>] type sec
+[<Measure>] type kg
 
-/// A generic wrapper logger function that works with any function
-let genericLogger anyFunc input =       // val genericLogger : ('a -> 'b) -> 'a -> 'b
-    printfn "input is %A" input         // log the input
-    let result = anyFunc input          // evaluate the function
-    printfn "result is %A" result       // log the result
-    result                              // return the result
-
-let times2 input = input * 2            // val times2 : int -> int
-
-let add1WithLogging = genericLogger add1        // val add1WithLogging : (int -> int)
-let times2WithLogging = genericLogger times2    // val times2WithLogging : (int -> int)
-
-// test
-add1WithLogging 3
-times2WithLogging 3
-
-[1..5] |> List.map add1WithLogging
-
-/// A generic wrapper timer function that works with any function
-let genericTimer anyFunc input =        // val genericTimer : ('a -> 'b) -> 'a -> 'b
-   let stopwatch = System.Diagnostics.Stopwatch()
-   stopwatch.Start() 
-   let result = anyFunc input           // evaluate the function
-   printfn "elapsed ms is %A." stopwatch.ElapsedMilliseconds
-   result                               // return the result
-
-let add1WithTimer = genericTimer add1WithLogging        // val add1WithTimer : (int -> int)
-let times2WithTimer = genericTimer times2WithLogging    // val times2WithTimer : (int -> int)
-
-// test
-add1WithTimer 3
-times2WithTimer 3
+let distance = 1.0<m>    
+let time = 2.0<sec>    
+let speed = distance/time 
+let acceleration = speed/time
+let mass = 5.0<kg>    
+let force = mass * speed/time
 
 
-//// Strategy Pattern
+//// Conversions
 
-type Animal(noiseMakingStrategy) = 
-   member this.MakeNoise = 
-      noiseMakingStrategy() |> printfn "Making noise %s" 
-   
-// now create a cat 
-let meowing() = "Meow"
-let cat = Animal(meowing)
-cat.MakeNoise
+/// Degrees Celsius
+[<Measure>] type degC
 
-// .. and a dog
-let woofOrBark() = if (DateTime.Now.Second % 2 = 0) 
-                   then "Woof" else "Bark"
-let dog = Animal(woofOrBark)
-dog.MakeNoise
+/// Degrees Farenheit
+[<Measure>] type degF
+
+/// Convert degrees Celsius to Farenheits
+let convertDegCToF c = 
+    c * 1.8<degF/degC> + 32.0<degF>
+
+// test    
+printfn "0°C is equivalent to %A°F." <| convertDegCToF 0.0<degC>
