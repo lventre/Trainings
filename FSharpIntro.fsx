@@ -260,8 +260,8 @@ type OptionAEC =
 /// Display the description of a stock option
 let rec display (option) =
     match option with
-    | OptionAEC.American (k, v) -> sprintf "an american option of kind %A and value %f" k v
-    | OptionAEC.European (k, v) -> sprintf "a european option of kind %A and value %f" k v
+    | OptionAEC.American (k, v) -> sprintf "an american option of kind %A and price %f" k v
+    | OptionAEC.European (k, v) -> sprintf "a european option of kind %A and price %f" k v
     | OptionAEC.Combine  (l, r) -> sprintf "A combination of %s, and %s" (display l) (display r)
 
 let american = OptionAEC.American (OptionKind.Call, 0.5)
@@ -483,41 +483,26 @@ F# units of measure
 -------------------------------------------------------------------------
 *)
 
-type CurrencyRate<[<Measure>]'u, [<Measure>]'v> =
-    { Rate: float<'u/'v>; Date: System.DateTime }
-
 [<Measure>] type EUR
 [<Measure>] type USD
 [<Measure>] type GBP
 
-let date = System.DateTime(2015, 11, 25)
-let eurToUsdAtDate = { Rate= 1.2<USD/EUR>; Date= date }
-let eurToGbpAtDate = { Rate= 1.2<GBP/EUR>; Date= date }
+let inline convert rate = // statically resolved type parameters
+    fun price -> price * rate
 
-let tenEur = 10.0<EUR>
-let tenEurInUsd = eurToUsdAtDate.Rate * tenEur
+let price_eur = 10.0<EUR>
+let eur_usd = 1.06734<USD/EUR>
+let price_usd = convert eur_usd price_eur
 
+let eur_gbp = 0.707480198<GBP/EUR>
 
-//// Combining units
-
-[<Measure>] type m
-[<Measure>] type sec
-[<Measure>] type kg
-
-let distance = 1.0<m>    
-let time = 2.0<sec>    
-let speed = distance/time 
-let acceleration = speed/time
-let mass = 5.0<kg>    
-let force = mass * speed/time
-
+// test
+let gbp_usd = eur_usd / eur_gbp
+printfn "1£ = %A$" <| convert gbp_usd 1.0<GBP>
 
 //// Conversions
 
-/// Degrees Celsius
 [<Measure>] type degC
-
-/// Degrees Farenheit
 [<Measure>] type degF
 
 /// Convert degrees Celsius to Farenheits
